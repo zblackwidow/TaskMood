@@ -1,16 +1,39 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useReducer, useMemo, useCallback } from "react";
 import "./spinner.css";
 import Card from "./TaskCard";
+import { useTema } from "../DarkMode/TemaContext";
 
-interface Task {
+type Task = {
   id: number;
   text: string;
   createdAt: string;
+};
+
+type TaskAction =
+  | { type: "ADD"; payload: Task }
+  | { type: "DELETE"; payload: number }
+  | { type: "DELETE_ALL" }
+  | { type: "SET"; payload: Task[] };
+
+function taskReducer(state: Task[], action: TaskAction): Task[] {
+  switch (action.type) {
+    case "ADD":
+      return [...state, action.payload];
+    case "DELETE":
+      return state.filter((task) => task.id !== action.payload);
+    case "DELETE_ALL":
+      return [];
+    case "SET":
+      return action.payload;
+    default:
+      return state;
+  }
 }
+
 interface TaskBoardProps {}
 
 function Taskboard({}: TaskBoardProps) {
-  const [task, setTask] = useState<Task[]>(() => {
+  const [task, dispatch] = useReducer(taskReducer, [], () => {
     const saved = localStorage.getItem("tasks");
     return saved ? JSON.parse(saved) : [];
   });
@@ -18,12 +41,14 @@ function Taskboard({}: TaskBoardProps) {
   const [viewMore, setViewMore] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const inputRef = useRef<HTMLInputElement>(null);
+   const { tema } = useTema();
 
   useEffect(() => {
     setTimeout(() => {
       setLoading(false);
     }, 5500);
   }, []);
+  
   useEffect(() => {
     if (!loading) {
       inputRef.current?.focus();
@@ -34,26 +59,29 @@ function Taskboard({}: TaskBoardProps) {
     localStorage.setItem("tasks", JSON.stringify(task));
   }, [task]);
 
-  const addTask = () => {
+  const addTask = useCallback(() => {
     if (newTask.trim() === "") return;
-    const newTasks = {
+    const newTaskObj = {
       id: task.length,
       text: newTask,
       createdAt: new Date().toLocaleString(),
     };
-    setTask([...task, newTasks]);
+    dispatch({ type: "ADD", payload: newTaskObj });
     setNewTask("");
     inputRef.current?.focus();
-  };
+  }, [newTask, task.length, dispatch]);
 
-  const deleteTask = (id: string | number) => {
-    setTask(task.filter((task) => task.id !== id));
-  };
-  const deleteAllTasks = () => {
-    setTask([]);
-  };
+  const deleteTask = useCallback((id: number) => {
+    dispatch({ type: "DELETE", payload: id });
+  }, [dispatch]);
 
-  const lastTask = task[task.length - 1];
+  const deleteAllTasks = useCallback(() => {
+    dispatch({ type: "DELETE_ALL" });
+  }, [dispatch]);
+
+  const lastTask = useMemo(() => {
+    return task[task.length - 1];
+  }, [task]);
 
   if (loading) {
     return (
@@ -72,7 +100,11 @@ function Taskboard({}: TaskBoardProps) {
       <div className="flex flex-col h-auto w-10/12 p-4 items-center">
         <div className="w-11/12 flex justify-center focus:justify-start ">
           <input
-            className="w-3/4 sm:w-1/4  focus:w-3/4 transition-all duration-300 h-auto border-2 border-violet-400 rounded-xl p-2  shadow-md resize-y"
+            className={`w-3/4 sm:w-1/4 focus:w-3/4 transition-all duration-300 h-auto border-2 rounded-xl p-2 shadow-md resize-y
+        ${tema === "oscuro"
+          ? "bg-white text-black border-violet-400 placeholder-gray-500"
+          : "bg-gray-800 text-white border-violet-400 placeholder-gray-400"
+        }`}
             type="text"
             value={newTask}
             ref={inputRef}
