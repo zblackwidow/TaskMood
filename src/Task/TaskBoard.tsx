@@ -1,9 +1,11 @@
-// import Card from "./TaskCard";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import "./spinner.css";
+import Card from "./TaskCard";
 
 interface Task {
   id: number;
   text: string;
+  createdAt: string;
 }
 interface TaskBoardProps {}
 
@@ -14,6 +16,19 @@ function Taskboard({}: TaskBoardProps) {
   });
   const [newTask, setNewTask] = useState<string>("");
   const [viewMore, setViewMore] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setTimeout(() => {
+      setLoading(false);
+    }, 5500);
+  }, []);
+  useEffect(() => {
+    if (!loading) {
+      inputRef.current?.focus();
+    }
+  }, [loading]);
 
   useEffect(() => {
     localStorage.setItem("tasks", JSON.stringify(task));
@@ -24,12 +39,14 @@ function Taskboard({}: TaskBoardProps) {
     const newTasks = {
       id: task.length,
       text: newTask,
+      createdAt: new Date().toLocaleString(),
     };
     setTask([...task, newTasks]);
     setNewTask("");
+    inputRef.current?.focus();
   };
 
-  const deleteTask = (id: number) => {
+  const deleteTask = (id: string | number) => {
     setTask(task.filter((task) => task.id !== id));
   };
   const deleteAllTasks = () => {
@@ -38,15 +55,27 @@ function Taskboard({}: TaskBoardProps) {
 
   const lastTask = task[task.length - 1];
 
+  if (loading) {
+    return (
+      <div className="flex flex-col justify-center items-center h-screen">
+        <div className="spinner"> </div>
+        <h3 className="text-2xl">Cargando tareas...</h3>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col items-center py-4 h-dvh">
-      <h2>Mis Tareas</h2>
-      <div className="flex flex-col h-dvh border-2 w-full items-center">
-        <div className="w-11/12 flex justify-center">
+    <div className="flex flex-col items-center py-4">
+      <h1 className="text-5xl mb-6 mt-10 text-shadow-lg italic font-sans">
+        <a className="underline decoration-pink-500"> Mis tareas</a>
+      </h1>
+      <div className="flex flex-col h-auto w-10/12 p-4 items-center">
+        <div className="w-11/12 flex justify-center focus:justify-start ">
           <input
-            className="border-2 rounded-xl p-2"
+            className="w-3/4 sm:w-1/4  focus:w-3/4 transition-all duration-300 h-auto border-2 border-violet-400 rounded-xl p-2  shadow-md resize-y"
             type="text"
             value={newTask}
+            ref={inputRef}
             onChange={(e) => setNewTask(e.target.value)}
             placeholder="Nueva tarea"
             onKeyDown={(e) => {
@@ -55,48 +84,41 @@ function Taskboard({}: TaskBoardProps) {
               }
             }}
           />
-          <button onClick={addTask} className="rounded-xl bg-gray-200 p-2 ml-4">
+          <button
+            onClick={addTask}
+            className="rounded-xl bg-violet-500 hover:bg-violet-600 text-white py-2 px-4 ml-4 shadow-md cursor-pointer"
+          >
             Agregar
           </button>
         </div>
-        <div className="w-11/12 xl:w-2/4">
+        <div className="w-full xl:w-3/4 transition-all duration-300 min-h-[70vh] flex flex-col items-center">
           {task.length === 0 ? (
-            <p>No hay tareas</p>
+            <p className="text-xl p-6">No hay tareas</p>
           ) : viewMore ? (
-            <div>
+            <div className="h-full w-full flex flex-col items-center">
               {task.map((task) => (
-                <div
-                  key={task.id}
-                  className="w-11/12 xl:w-full bg-white shadow-md rounded-lg p-4 m-4 flex flex-col"
-                >
-                  {task.text}
-                  <button onClick={() => deleteTask(task.id)}>Eliminar</button>
-                </div>
+                <Card key={task.id} lastTask={task} deleteTask={deleteTask} />
               ))}
+              <button
+                onClick={deleteAllTasks}
+                className="bg-red-400 text-white p-3 rounded-xl shadow-md cursor-pointer mb-4"
+              >
+                Eliminar todas las tareas
+              </button>
             </div>
           ) : (
-            <div>
-              {lastTask && (
-                <div
-                  key={lastTask.id}
-                  className="w-11/12 bg-white shadow-md rounded-lg p-4 m-4 flex flex-col "
-                >
-                  {lastTask.text}
-                  <button onClick={() => deleteTask(lastTask.id)} className="w-1/4 bg-red-200 p-2 rounded-xl">
-                    Eliminar
-                  </button>
-                </div>
-              )}
+            <div className="w-full flex flex-col items-center">
+              {lastTask && <Card lastTask={lastTask} deleteTask={deleteTask} />}
             </div>
           )}
-          <div className="flex justify-between w-full">
           {task.length > 1 && (
-            <button onClick={() => setViewMore(!viewMore)} className="bg-green-200 p-3 rounded-xl">
-              {viewMore ? "Ver menos" : "Ver más"}
+            <button
+              onClick={() => setViewMore(!viewMore)}
+              className="bg-violet-400 p-3 rounded-xl text-white hover:bg-violet-600 shadow-md cursor-pointer "
+            >
+              {viewMore ? "Ver menos" : "Ver todas"}
             </button>
           )}
-          <button onClick={deleteAllTasks} className="bg-red-200 p-3 rounded-xl">Eliminar todas las tareas</button>
-        </div>
         </div>
       </div>
     </div>
